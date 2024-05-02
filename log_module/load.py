@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 
 def load_main_data():
     # 옵션 설정
-    plt.rcParams['font.family'] = 'NanumGothic'
+    plt.rcParams['font.family'] ='Malgun Gothic'
+    plt.rcParams['axes.unicode_minus'] =False
     pd.set_option('display.max.colwidth', 1000)
 
     pattern = r"\[(.*?)\] \[(.*?)\]: (.*)"
@@ -30,7 +31,11 @@ def load_db_data():
     import mysql.connector
     import pandas as pd
 
-    db = # db 정보 생략
+    db = mysql.connector.connect(
+        host="127.0.0.1",
+        user="root",
+        database="view_dbb"
+    )
     cursor = db.cursor()
     query = 'SELECT * FROM player_info_view'
     cursor.execute(query)

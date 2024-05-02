@@ -1,6 +1,7 @@
 from common import convert_to_seconds
 import pandas as pd
 from load import load_all
+from common import extract_user_info
 df, lst, user_df = load_all()
 
 
@@ -36,19 +37,25 @@ def time_df_func():
     return time
 
 def user_info():
-    top_users = login_df['Message'].str.extract(r'\[\w+\] ?(\w+)')[0].value_counts().head(5) # 지표1. 유저 로그인 순위 series
-    time_df = pd.DataFrame({'User': lst , '누적 시간': time}).sort_values(by='누적 시간',ascending=False).reset_index().drop('index',axis=1).head(10) # 지표 2. 유저별 누적시간 순위 데이터  
-    return top_users , time_df
+    max_rank = 200
+    extract_user_info(login_df,lst)
+    top_users = login_df.groupby('user')['Seconds'].count().sort_values(ascending=False)/2 # 접속 횟수
+    time_df = pd.DataFrame({'user': lst , '누적 시간': time}).sort_values(by='누적 시간',ascending=False).reset_index().drop('index',axis=1) 
+    time_df['time_rank'] = time_df['누적 시간'].rank(ascending=False) 
+    vip_user = list(time_df[time_df['time_rank']<10]['user'])
+    time_df['time_score'] = max_rank - time_df['time_rank'] + 1
+    return top_users , time_df , vip_user
 
 def user_all():
     login_df = login_df_func() 
     time = time_df_func()  
-    top_users , time_df = user_info()  
-    return login_df, time , top_users ,time_df 
+    top_users , time_df , vip_user = user_info()  
+    return login_df, time , top_users ,time_df , vip_user
+
+
+
 
 
 # 유저 접속 순위 / 유저 접속 시간 순위
 if __name__ == "__main__":
     user_all()
-    # print(len(time))
-    # print(len(lst))

@@ -5,9 +5,9 @@ from collections import Counter
 import pandas as pd
 
 df, lst, user_df = load_all()
-login_df, time, top_users, time_df = user_all()
+login_df, time, top_users, time_df , vip_user = user_all()
 
-# 구입분석 
+# 구입분석 (GUI밖에 없었다.)
 def buy_df_func():
     buy_df = df[df['Message'].str.contains('구입')].copy()
     buy_df['Item'] = buy_df['Message'].str.extract(r'님이 ([^(]+)') # 님이 이후에 괄호를 뺀 모든 문자열 (아이템명)
@@ -60,46 +60,64 @@ def shop_all_func():
     sell_df = pd.concat([sell_df_multi,sell_df_one])
     sell_df['item'] = sell_df['item'].str.replace(',\s*', ',', regex=True) # 공백제거
     sell_df['category'] = sell_df['category'].str.replace(',\s*', ',', regex=True) #공백제거
+    extract_user_info(sell_df_one,lst)
+    extract_user_info(sell_df_multi,lst)
     extract_user_info(sell_df,lst)
 
     return buy_df , sell_df_multi , sell_df_one , sell_df
 
 
+
 def shop_info():
-    buy_item_cost = buy_df.groupby('Item')['cost'].sum().sort_values(ascending=False).head(5) # 가장 산금액이 높은 아이템 
-    buy_item_count = buy_df.groupby('Item')['Count'].sum().sort_values(ascending=False).head(5) # 가장 많이 산 아이템
-    buy_item_category = buy_df.groupby('category')['Count'].sum().sort_values(ascending=False).head(5) # 가장 많이 산 카테고리
+    buy_item_cost = buy_df.groupby('Item')['cost'].sum().sort_values(ascending=False).head(5) # 1.가장 산금액이 높은 아이템 
+    buy_item_count = buy_df.groupby('Item')['Count'].sum().sort_values(ascending=False).head(5) # 2.가장 많이 산 아이템
+    buy_item_category = buy_df.groupby('category')['Count'].sum().sort_values(ascending=False).head(5) # 3.가장 많이 산 카테고리
+    
+    
+    king_user_buy = buy_df.groupby('user')['Count'].sum().sort_values(ascending=False).head(5) # 4.유저 구매왕
+    
+    vip_buy_user = buy_df[buy_df['user'].isin(vip_user)] # vip유저 추출 
+    vip_buy_user_category = vip_buy_user.groupby(['user','category'])['Count'].sum().sort_values(ascending=False) # 5.vip 유저 카테고리별 구매
+    
+    user_most_purchased_item = vip_buy_user.groupby(['user', 'Item'])['Count'].sum().reset_index()
+    idx = user_most_purchased_item.groupby('user')['Count'].idxmax()
+    vip_buy_user_item = user_most_purchased_item.loc[idx] # 6.vip 유저별 가장 많이 산 아이템
 
-    king_user_buy = buy_df.groupby('user')['Count'].sum().sort_values(ascending=False).head(5) # 유저 구매왕
-    user_buy_category = buy_df.groupby(['user','category'])['Count'].sum().sort_values(ascending=False).head(5) # 유저별 카테고리 구매 개수 
-    user_buy_item = buy_df.groupby(['user','Item'])['Count'].sum().sort_values(ascending=False).head(7) # 유저별 어떤 아이템 많이 샀는지 
 
-    sell_df_multi_cost = sell_df_multi.groupby('item')['cost'].sum().sort_values(ascending=False).head(3)  # 조합 최고 돈번 상품 
-    sell_df_one_cost = sell_df_one.groupby('item')['cost'].sum().sort_values(ascending=False).head(5) # 한개만 캐서 파는 최고 돈번 상품 
+
+
+    ################################ 판매 ######################################### 
+    sell_df_one_cost = sell_df_one.groupby('item')['cost'].sum().sort_values(ascending=False).head(5) # 7.한개만 캐서 파는 최고 돈번 상품 
 
 
     all_words = ",".join(sell_df["item"])
     word_counts = Counter(all_words.split(','))
-    sell_count =  word_counts.most_common(7)
-    sell_count_data = pd.DataFrame(sell_count, columns=['품목', '판매량']) # 가장 많이 판매한 아이템 
+    sell_count =  word_counts.most_common(5)
+    sell_count_data = pd.DataFrame(sell_count, columns=['품목', '판매량']) # 8.가장 많이 판매한 아이템 
 
 
     all_words2 = ",".join(sell_df["category"])
     word_counts2 = Counter(all_words2.split(','))
     sell_count2 =  word_counts2.most_common(10)
-    sell_count_data2 = pd.DataFrame(sell_count2, columns=['카테고리', '판매량']) # 가장 많이 판매한 카테고리 
+    sell_count_data2 = pd.DataFrame(sell_count2, columns=['카테고리', '판매량']) # 9.가장 많이 판매한 카테고리 
 
+    # 10.유저 판매왕
+    king_user_sell = sell_df.groupby('user')['cost'].sum().sort_values(ascending=False).head(5) 
     
-    king_user_sell = sell_df.groupby('user')['cost'].sum().sort_values(ascending=False).head(5) # 유저 판매왕
+    # 11. vip 유저 돈 많이 번 카테고리
+    vip_sell_user = sell_df_one[sell_df_one['user'].isin(vip_user)] # vip유저 추출 
+    vip_sell_user_category = vip_sell_user.groupby(['user','category'])['cost'].sum().sort_values(ascending=False) 
+    
+    # 12 vip 유저 돈 많이 번 아이템
+    vip_sell_user_item = vip_sell_user.groupby(['user','item'])['cost'].sum().sort_values(ascending=False) 
 
-    return buy_item_cost,buy_item_count,buy_item_category,sell_df_multi_cost,sell_df_one_cost,king_user_buy,user_buy_category,user_buy_item,sell_count_data,sell_count_data2,king_user_sell
-
+    return buy_item_cost , buy_item_count , buy_item_category , king_user_buy , vip_buy_user_category , vip_buy_user_item,sell_df_one_cost,sell_count_data,sell_count_data2,king_user_sell,vip_sell_user_category,vip_sell_user_item
 
 def shop_all():
     buy_df , sell_df_multi , sell_df_one , sell_df = shop_all_func()
-    buy_item_cost,buy_item_count,buy_item_category,sell_df_multi_cost,sell_df_one_cost,king_user_buy,user_buy_category,user_buy_item,sell_count_data,sell_count_data2,king_user_sell = shop_info()
+    buy_item_cost , buy_item_count , buy_item_category , king_user_buy , vip_buy_user_category , vip_buy_user_item,sell_df_one_cost,sell_count_data,sell_count_data2,king_user_sell,vip_sell_user_category,vip_sell_user_item = shop_info()
 
-    return  buy_df , sell_df_multi , sell_df_one , sell_df , buy_item_cost,buy_item_count,buy_item_category,sell_df_multi_cost,sell_df_one_cost,king_user_buy,user_buy_category,user_buy_item,sell_count_data,sell_count_data2,king_user_sell 
+    return  buy_df , sell_df_multi , sell_df_one , sell_df , buy_item_cost , buy_item_count , buy_item_category , king_user_buy , vip_buy_user_category , vip_buy_user_item,sell_df_one_cost,sell_count_data,sell_count_data2,king_user_sell,vip_sell_user_category,vip_sell_user_item
 
 
 if __name__ == "__main__":
